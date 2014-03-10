@@ -26,9 +26,7 @@
 	THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef BOTC_LEXER_SCANNER_H
-#define BOTC_LEXER_SCANNER_H
-
+#pragma once
 #include <climits>
 #include "main.h"
 
@@ -108,5 +106,3 @@ class LexerScanner
 		// Skips many characters
 		void			skip (int chars);
 };
-
-#endif // BOTC_LEXER_SCANNER_H

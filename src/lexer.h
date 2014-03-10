@@ -26,9 +26,7 @@
 	THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef BOTC_LEXER_H
-#define BOTC_LEXER_H
-
+#pragma once
 #include "main.h"
 #include "lexerscanner.h"
 
@@ -122,5 +120,3 @@ private:
 
 	static String describeTokenPrivate (ETokenType tok_type, TokenInfo* tok);
 };
-
-#endif // BOTC_LEXER_H
