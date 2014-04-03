@@ -33,13 +33,13 @@
 
 const char g_propertyTemplate[] =
 	"template<typename Parent, typename Type, int Offset, void (*Func)(Parent*, Type&, const Type&)>\n"
-	"class CustomProperty\n"
+	"class metacollector_customproperty\n"
 	"{\n"
 	"public:\n"
-	"\tusing Self = CustomProperty<Parent, Type, Offset, Func>;\n"
+	"\tusing Self = metacollector_customproperty<Parent, Type, Offset, Func>;\n"
 	"\n"
-	"\tCustomProperty(){}\n"
-	"\tCustomProperty (const Type& a) :\n"
+	"\tmetacollector_customproperty(){}\n"
+	"\tmetacollector_customproperty (const Type& a) :\n"
 	"\t\tm_value (a) {}\n"
 	"\n"
 	"\tSelf& operator= (const Type& a)\n"
@@ -242,6 +242,7 @@ int main (int argc, char** argv)
 		}
 
 		printTo (header, "#pragma once\n");
+		printTo (header, "#include <cstddef>\n");
 		printTo (header, "#define PROPERTY(...)\n");
 		printTo (header, "#define CLASSDATA(A) METACOLLECTOR_CLASS_DATA_##A\n");
 		printTo (header, "\n");
@@ -276,7 +277,16 @@ int main (int argc, char** argv)
 			}
 		}
 
-		printTo (header, "\n");
+		// Write offset reference structs
+		for (ClassData& cls : g_classes)
+		{
+			printTo (header, "struct metacollector_refstruct_%1\n{\n", cls.name);
+
+			for (Property& prop : cls.properties)
+				printTo (header, "\t%1 %2;\n", prop.type, prop.name);
+
+			printTo (header, "};\n\n");
+		}
 
 		for (ClassData& cls : g_classes)
 		{
@@ -291,23 +301,10 @@ int main (int argc, char** argv)
 					printTo (header, "\t%1 %2; \\\n", prop.type, prop.name);
 				else
 				{
-					String size;
+					String size = format ("offsetof (metacollector_refstruct_%1, %2)",
+						cls.name, prop.name);
 
-					for (Property& prop2 : cls.properties)
-					{
-						if (&prop2 == &prop)
-							break;
-
-						if (size.isEmpty() == false)
-							size += " + ";
-
-						size += "sizeof " + prop2.name;
-					}
-
-					if (size.isEmpty())
-						size = "0";
-
-					printTo (header, "\tCustomProperty<%1, %2, %3, %4> %5; \\\n",
+					printTo (header, "\tmetacollector_customproperty<%1, %2, %3, %4> %5; \\\n",
 						cls.name, prop.type, size, redirectorName (cls.name, prop.name), prop.name);
 				}
 
@@ -321,9 +318,10 @@ int main (int argc, char** argv)
 			}
 
 			printTo (header, "\n");
-			fclose (header);
-			fclose (source);
 		}
+
+		fclose (header);
+		fclose (source);
 		return 0;
 	}
 	catch (std::exception& e)
