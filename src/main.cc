@@ -28,6 +28,9 @@
 
 #include <string.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "main.h"
 #include "lexer.h"
 
@@ -209,10 +212,48 @@ void processFile (String file)
 		g_sourceIncludes << file;
 }
 
+bool fileExists (const String& path)
+{
+	FILE* fp = fopen (path, "r");
+
+	if (fp == null)
+		return false;
+
+	fclose (fp);
+	return true;
+}
+
+time_t getModificationTime (const String& path)
+{
+	struct stat st;
+
+	if (stat (path, &st) != 0)
+		error ("couldn't stat %1", path);
+
+	return st.st_mtim.tv_sec;
+}
+
 int main (int argc, char** argv)
 {
 	try
 	{
+		// Check modification times. If no header has been modified since the
+		// metadata was, we don't need to do anything.
+		if (fileExists (argv[argc - 1]) && fileExists (argv[argc - 2]))
+		{
+			time_t basetime = getModificationTime (argv[argc - 1]);
+			bool mustProcess = false;
+
+			for (int i = 1; i < argc - 2 && mustProcess == false; ++i)
+				mustProcess |= getModificationTime (argv[i]) > basetime;
+
+			if (mustProcess == false)
+			{
+				print ("%1: No headers changed.\n", basename (argv[0]));
+				return 0;
+			}
+		}
+
 		for (int i = 1; i < argc - 2; ++i)
 			processFile (argv[i]);
 
@@ -277,21 +318,18 @@ int main (int argc, char** argv)
 			}
 		}
 
-		// Write offset reference structs
-		for (ClassData& cls : g_classes)
-		{
-			printTo (header, "struct metacollector_refstruct_%1\n{\n", cls.name);
-
-			for (Property& prop : cls.properties)
-				printTo (header, "\t%1 %2;\n", prop.type, prop.name);
-
-			printTo (header, "};\n\n");
-		}
-
 		for (ClassData& cls : g_classes)
 		{
 			printTo (header, "#define METACOLLECTOR_CLASS_DATA_%1 \\\n", cls.name);
 			printTo (header, "using Self = %1; \\\n", cls.name);
+
+			// Write offset reference struct
+			printTo (header, "struct OffsetReference \\\n\t{ \\\n", cls.name);
+
+			for (Property& prop : cls.properties)
+				printTo (header, "\t\t%1 %2; \\\n", prop.type, prop.name);
+
+			printTo (header, "}; \\\n\\\n");
 
 			for (Property& prop : cls.properties)
 			{
